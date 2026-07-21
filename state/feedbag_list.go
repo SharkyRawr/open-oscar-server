@@ -558,21 +558,22 @@ func (f *FeedbagList) upsertItem(item wire.FeedbagItem) (wire.FeedbagItem, bool)
 // genID generates a unique ID that does not conflict with any existing ItemID
 // or GroupID in the list.
 func (f *FeedbagList) genID() uint16 {
-	num := uint16(f.randInt(math.MaxUint16))
-	for itemID := num; itemID != num-1; itemID++ {
+	var used [math.MaxUint16 + 1]bool
+	used[0] = true
+	for _, item := range f.items {
+		used[item.ItemID] = true
+		used[item.GroupID] = true
+	}
+
+	itemID := uint16(f.randInt(math.MaxUint16))
+	for range math.MaxUint16 {
 		if itemID == 0 {
-			continue
+			itemID = 1
 		}
-		exists := false
-		for _, item := range f.items {
-			if item.GroupID == itemID || item.ItemID == itemID {
-				exists = true
-				break
-			}
-		}
-		if !exists {
+		if !used[itemID] {
 			return itemID
 		}
+		itemID++
 	}
 	return 0
 }

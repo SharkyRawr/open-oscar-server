@@ -1,4 +1,4 @@
-FROM golang:1.26.2-alpine AS builder
+FROM golang:alpine AS builder
 
 WORKDIR /app
 
@@ -7,13 +7,18 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o open_oscar_server ./cmd/server
+RUN CGO_ENABLED=0 go build -trimpath -o open_oscar_server ./cmd/server
 
 FROM alpine:latest
 
-WORKDIR /app
+RUN addgroup -S -g 65532 oscar && \
+    adduser -S -D -H -u 65532 -G oscar oscar && \
+    install -d -o oscar -g oscar /data
 
-COPY --from=builder /app/open_oscar_server /app/
+COPY --from=builder --chown=65532:65532 /app/open_oscar_server /app/open_oscar_server
+
+USER 65532:65532
+WORKDIR /data
 
 EXPOSE 5190 8080 9898 1088 4000/udp
 

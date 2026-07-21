@@ -1,8 +1,10 @@
 .idea/
 *.db
+*.db-journal
 *.sqlite
 dist/
 *.DS_Store
 certs/
 .vscode/
 .cursor/
+/.github

@@ -67,9 +67,9 @@ check_prereqs() {
 
 stop_existing_services() {
     log "Stopping any existing Docker Compose services..."
-    if docker compose ps -q 2>/dev/null | grep -q .; then
+    if docker compose -f docker-compose.dev.yaml ps -q 2>/dev/null | grep -q .; then
         log "Found running services, stopping them..."
-        docker compose down 2>/dev/null || true
+        docker compose -f docker-compose.dev.yaml down 2>/dev/null || true
         success "Stopped existing services."
     else
         log "No running services found."
@@ -209,4 +209,3 @@ main() {
 }
 
 main "$@"
-
