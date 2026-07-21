@@ -133,14 +133,14 @@ ICQ_LEGACY_DIRECT_CONNECTIONS=5
 
 ### Docker
 
-If running via Docker, ensure UDP port 4000 is mapped in `docker-compose.yaml`:
+If running via Docker, ensure UDP port 4000 is mapped in `docker-compose.dev.yaml`:
 
 ```yaml
 ports:
   - "4000:4000/udp"
 ```
 
-This mapping is included in the default `docker-compose.yaml`.
+This mapping is included in `docker-compose.dev.yaml`.
 
 ### Troubleshooting
 
