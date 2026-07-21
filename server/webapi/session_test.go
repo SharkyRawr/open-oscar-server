@@ -278,15 +278,14 @@ func assertQueueClosed(t *testing.T, ctx context.Context, sess *Session) {
 func TestSessionManager_ShutdownWithoutReaper(t *testing.T) {
 	mgr := NewSessionManager()
 
-	done := make(chan struct{})
+	done := make(chan error, 1)
 	go func() {
-		defer close(done)
-		// This test is about Shutdown returning at all, not what it returns.
-		_ = mgr.Shutdown(context.Background())
+		done <- mgr.Shutdown(context.Background())
 	}()
 
 	select {
-	case <-done:
+	case err := <-done:
+		assert.NoError(t, err)
 	case <-time.After(5 * time.Second):
 		t.Fatal("Shutdown hung waiting for a reaper that was never started")
 	}
@@ -306,15 +305,14 @@ func TestSessionManager_ShutdownJoinsReaper(t *testing.T) {
 	// Give Run a chance to register itself before shutting down.
 	time.Sleep(50 * time.Millisecond)
 
-	done := make(chan struct{})
+	done := make(chan error, 1)
 	go func() {
-		defer close(done)
-		// This test is about Shutdown returning at all, not what it returns.
-		_ = mgr.Shutdown(context.Background())
+		done <- mgr.Shutdown(context.Background())
 	}()
 
 	select {
-	case <-done:
+	case err := <-done:
+		assert.NoError(t, err)
 	case <-time.After(5 * time.Second):
 		t.Fatal("Shutdown hung instead of stopping the reaper")
 	}

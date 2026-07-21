@@ -1,0 +1,87 @@
+services:
+  open-oscar-server:
+    image: ghcr.io/sharkyrawr/open-oscar-server:latest
+    pull_policy: always
+    user: "65532:65532"
+    env_file:
+      - ./config/ssl/settings.env
+    environment:
+      API_LISTENER: 0.0.0.0:8080
+      DB_PATH: /data/oscar.sqlite
+      DISABLE_AUTH: "false"
+      ICQ_LEGACY_ENABLED: "true"
+      OSCAR_ADVERTISED_LISTENERS_SSL: LOCAL://${OSCAR_HOST:?set OSCAR_HOST}:5193
+      TOC_LISTENERS: 127.0.0.1:9898
+      WEBAPI_LISTENERS: 127.0.0.1:8081
+    ports:
+      - "127.0.0.1:${MGMT_PORT:-8080}:8080"
+    volumes:
+      - type: bind
+        source: ./data
+        target: /data
+    networks:
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 1g
+    cpus: 2
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  stunnel:
+    image: ghcr.io/sharkyrawr/open-oscar-server-stunnel:latest
+    pull_policy: always
+    user: "65532:65532"
+    depends_on:
+      - open-oscar-server
+    command: stunnel.prod.conf
+    ports:
+      - "${KERBEROS_TLS_PORT:-443}:1443"
+      - "${OSCAR_TLS_PORT:-5193}:15193"
+    volumes:
+      - type: bind
+        source: ./config/ssl/stunnel.prod.conf
+        target: /etc/stunnel/stunnel.prod.conf
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./certs/server.pem
+        target: /etc/stunnel/server.pem
+        read_only: true
+        bind:
+          create_host_path: false
+    networks:
+      - edge
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=8m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 1
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+networks:
+  edge:
+  backend:
+    internal: true
