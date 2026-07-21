@@ -13,6 +13,7 @@ SIGN_HTTP_URL ?=
 SIGN_SERVER_TOKEN ?=
 GORELEASER ?= goreleaser
 GOLANGCI_LINT ?= golangci-lint
+DOCKER_IMAGE_REPO := ghcr.io/sharkyrawr/open-oscar-server
 
 DOCKER_RUN_GO_RELEASER := @docker run \
 	--env CGO_ENABLED=0 \
@@ -95,30 +96,34 @@ release-sign: ## Full GoReleaser on host with Windows signing (needs $(GORELEASE
 
 .PHONY: docker-image-ras
 docker-image-ras: ## Build Open OSCAR Server image
-	docker build -t ras:latest -f Dockerfile .
+	docker build -t $(DOCKER_IMAGE_REPO):latest -f Dockerfile .
 
 .PHONY: docker-image-nginx
 docker-image-nginx: ## Build nginx image pinned to v1.28.0 / OpenSSL 1.0.2u
 	docker build -t $(NGINX_IMAGE) -f Dockerfile.nginx .
 
+.PHONY: docker-image-stunnel
+docker-image-stunnel: ## Build stunnel 5.76 with legacy OpenSSL 1.0.2u
+	docker build -t $(DOCKER_IMAGE_REPO)-stunnel:latest -f Dockerfile.stunnel .
+
 .PHONY: docker-image-certgen
 docker-image-certgen: ## Build minimal helper image with openssl & nss tools
-	docker build -t ras-certgen:latest -f Dockerfile.certgen .
+	docker build -t $(DOCKER_IMAGE_REPO)-certgen:latest -f Dockerfile.certgen .
 
 .PHONY: docker-images
-docker-images: docker-image-ras docker-image-nginx docker-image-certgen
+docker-images: docker-image-ras docker-image-nginx docker-image-stunnel docker-image-certgen
 
 .PHONY: docker-run
 docker-run:
-	OSCAR_HOST=$(OSCAR_HOST) NGINX_IMAGE=$(NGINX_IMAGE) CLIENT_DIR=$(CLIENT_DIR) docker compose up open-oscar-server nginx
+	OSCAR_HOST=$(OSCAR_HOST) docker compose -f docker-compose.dev.yaml up open-oscar-server stunnel
 
 .PHONY: docker-run-bg
 docker-run-bg: ## Run Open OSCAR Server in background with docker-compose
-	OSCAR_HOST=$(OSCAR_HOST) NGINX_IMAGE=$(NGINX_IMAGE) CLIENT_DIR=$(CLIENT_DIR) docker compose up -d open-oscar-server nginx
+	OSCAR_HOST=$(OSCAR_HOST) docker compose -f docker-compose.dev.yaml up -d open-oscar-server stunnel
 
 .PHONY: docker-run-stop
 docker-run-stop: ## Stop Open OSCAR Server docker-compose services
-	OSCAR_HOST=$(OSCAR_HOST) NGINX_IMAGE=$(NGINX_IMAGE) CLIENT_DIR=$(CLIENT_DIR) docker compose down
+	OSCAR_HOST=$(OSCAR_HOST) docker compose -f docker-compose.dev.yaml down
 
 .PHONY: run
 run: # run the server with plain socket config
@@ -139,11 +144,11 @@ run-nginx: # run nginx for SSL termination
 .PHONY: docker-cert
 docker-cert: clean-certs ## Create SSL certificates for server
 	mkdir -p certs/
-	OSCAR_HOST=$(OSCAR_HOST) docker compose run --no-TTY --rm cert-gen
+	OSCAR_HOST=$(OSCAR_HOST) docker compose -f docker-compose.dev.yaml run --no-TTY --rm cert-gen
 
 .PHONY: docker-nss
 docker-nss: ## Create NSS certificate database for AIM 6.x clients
-	OSCAR_HOST=$(OSCAR_HOST) docker compose run --no-TTY --rm nss-gen
+	OSCAR_HOST=$(OSCAR_HOST) docker compose -f docker-compose.dev.yaml run --no-TTY --rm nss-gen
 
 .PHONY: clean-certs
 clean-certs: ## Remove all generated certificates & NSS DB

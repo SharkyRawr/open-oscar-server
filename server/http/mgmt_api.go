@@ -1993,21 +1993,22 @@ func putFeedbagBuddyHandler(w http.ResponseWriter, r *http.Request, buddyBroadca
 }
 
 func randItemID(randInt func(n int) int, items []wire.FeedbagItem) uint16 {
-	num := uint16(randInt(math.MaxUint16))
-	for itemID := num; itemID != num-1; itemID++ {
+	var used [math.MaxUint16 + 1]bool
+	used[0] = true
+	for _, item := range items {
+		used[item.ItemID] = true
+		used[item.GroupID] = true
+	}
+
+	itemID := uint16(randInt(math.MaxUint16))
+	for range math.MaxUint16 {
 		if itemID == 0 {
-			continue
+			itemID = 1
 		}
-		exists := false
-		for _, item := range items {
-			if item.GroupID == itemID || item.ItemID == itemID {
-				exists = true
-				break
-			}
-		}
-		if !exists {
+		if !used[itemID] {
 			return itemID
 		}
+		itemID++
 	}
 	return 0
 }
