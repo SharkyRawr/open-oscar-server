@@ -19,6 +19,8 @@ Changes made on this branch relative to `main`.
   password reset command accepting the password as an argument or on stdin.
 - Expanded `oscar-admin` with user, session, instant-message, and server
   version commands.
+- Added human-readable output to all `oscar-admin` commands with optional
+  machine-readable output via `--json`.
 - Updated the Go and Debian base images while retaining stunnel 5.76, OpenSSL
   1.0.2u, and Alpine 3.16's NSS tooling for retro client compatibility;
   verified the stunnel source checksum and added a restricted production TLS

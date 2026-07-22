@@ -11,22 +11,28 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"time"
 )
 
 const defaultAPIURL = "http://127.0.0.1:8080"
 const usage = `usage:
-  oscar-admin set-password [-url URL] SCREEN_NAME [PASSWORD]
-  oscar-admin user list [-url URL]
-  oscar-admin user show [-url URL] SCREEN_NAME
-  oscar-admin user create [-url URL] SCREEN_NAME [PASSWORD]
-  oscar-admin user delete [-url URL] SCREEN_NAME
-  oscar-admin session list [-url URL]
-  oscar-admin session show [-url URL] SCREEN_NAME
-  oscar-admin session disconnect [-url URL] SCREEN_NAME
-  oscar-admin message send [-url URL] FROM TO TEXT
-  oscar-admin version [-url URL]`
+  oscar-admin set-password [-url URL] [--json] SCREEN_NAME [PASSWORD]
+  oscar-admin user list [-url URL] [--json]
+  oscar-admin user show [-url URL] [--json] SCREEN_NAME
+  oscar-admin user create [-url URL] [--json] SCREEN_NAME [PASSWORD]
+  oscar-admin user delete [-url URL] [--json] SCREEN_NAME
+  oscar-admin session list [-url URL] [--json]
+  oscar-admin session show [-url URL] [--json] SCREEN_NAME
+  oscar-admin session disconnect [-url URL] [--json] SCREEN_NAME
+  oscar-admin message send [-url URL] [--json] FROM TO TEXT
+  oscar-admin version [-url URL] [--json]`
+
+type commandOptions struct {
+	apiURL string
+	json   bool
+}
 
 func main() {
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -69,14 +75,14 @@ func userCommand(args []string, stdin io.Reader, stdout io.Writer, client *http.
 	case "list":
 		return getCommand(args[1:], "/user", stdout, client)
 	case "show":
-		apiURL, operands, err := parseArgs(args[1:], 1, 1)
+		options, operands, err := parseArgs(args[1:], 1, 1)
 		if err != nil {
 			return err
 		}
-		response, err := request(client, apiURL, http.MethodGet, "/user/"+url.PathEscape(operands[0])+"/account", nil, http.StatusOK)
-		return printResponse(stdout, response, err)
+		response, err := request(client, options.apiURL, http.MethodGet, "/user/"+url.PathEscape(operands[0])+"/account", nil, http.StatusOK)
+		return printResponse(stdout, response, options.json, err)
 	case "create":
-		apiURL, operands, err := parseArgs(args[1:], 1, 2)
+		options, operands, err := parseArgs(args[1:], 1, 2)
 		if err != nil {
 			return err
 		}
@@ -84,19 +90,19 @@ func userCommand(args []string, stdin io.Reader, stdout io.Writer, client *http.
 		if err != nil {
 			return err
 		}
-		_, err = request(client, apiURL, http.MethodPost, "/user", map[string]string{"screen_name": operands[0], "password": password}, http.StatusCreated)
+		_, err = request(client, options.apiURL, http.MethodPost, "/user", map[string]string{"screen_name": operands[0], "password": password}, http.StatusCreated)
 		if err == nil {
-			_, err = fmt.Fprintf(stdout, "created user %s\n", operands[0])
+			err = printSuccess(stdout, "created user "+operands[0], options.json)
 		}
 		return err
 	case "delete":
-		apiURL, operands, err := parseArgs(args[1:], 1, 1)
+		options, operands, err := parseArgs(args[1:], 1, 1)
 		if err != nil {
 			return err
 		}
-		_, err = request(client, apiURL, http.MethodDelete, "/user", map[string]string{"screen_name": operands[0]}, http.StatusNoContent)
+		_, err = request(client, options.apiURL, http.MethodDelete, "/user", map[string]string{"screen_name": operands[0]}, http.StatusNoContent)
 		if err == nil {
-			_, err = fmt.Fprintf(stdout, "deleted user %s\n", operands[0])
+			err = printSuccess(stdout, "deleted user "+operands[0], options.json)
 		}
 		return err
 	default:
@@ -112,18 +118,18 @@ func sessionCommand(args []string, stdout io.Writer, client *http.Client) error 
 	case "list":
 		return getCommand(args[1:], "/session", stdout, client)
 	case "show", "disconnect":
-		apiURL, operands, err := parseArgs(args[1:], 1, 1)
+		options, operands, err := parseArgs(args[1:], 1, 1)
 		if err != nil {
 			return err
 		}
 		path := "/session/" + url.PathEscape(operands[0])
 		if args[0] == "show" {
-			response, err := request(client, apiURL, http.MethodGet, path, nil, http.StatusOK)
-			return printResponse(stdout, response, err)
+			response, err := request(client, options.apiURL, http.MethodGet, path, nil, http.StatusOK)
+			return printResponse(stdout, response, options.json, err)
 		}
-		_, err = request(client, apiURL, http.MethodDelete, path, nil, http.StatusNoContent)
+		_, err = request(client, options.apiURL, http.MethodDelete, path, nil, http.StatusNoContent)
 		if err == nil {
-			_, err = fmt.Fprintf(stdout, "disconnected %s\n", operands[0])
+			err = printSuccess(stdout, "disconnected "+operands[0], options.json)
 		}
 		return err
 	default:
@@ -135,23 +141,23 @@ func messageCommand(args []string, stdout io.Writer, client *http.Client) error 
 	if len(args) == 0 || args[0] != "send" {
 		return errors.New("usage: oscar-admin message send [-url URL] FROM TO TEXT")
 	}
-	apiURL, operands, err := parseArgs(args[1:], 3, -1)
+	options, operands, err := parseArgs(args[1:], 3, -1)
 	if err != nil {
 		return err
 	}
-	_, err = request(client, apiURL, http.MethodPost, "/instant-message", map[string]string{
+	_, err = request(client, options.apiURL, http.MethodPost, "/instant-message", map[string]string{
 		"from": operands[0],
 		"to":   operands[1],
 		"text": strings.Join(operands[2:], " "),
 	}, http.StatusOK)
 	if err == nil {
-		_, err = fmt.Fprintln(stdout, "message sent")
+		err = printSuccess(stdout, "message sent", options.json)
 	}
 	return err
 }
 
 func setPassword(args []string, stdin io.Reader, stdout io.Writer, client *http.Client) error {
-	apiURL, operands, err := parseArgs(args, 1, 2)
+	options, operands, err := parseArgs(args, 1, 2)
 	if err != nil {
 		return err
 	}
@@ -159,36 +165,37 @@ func setPassword(args []string, stdin io.Reader, stdout io.Writer, client *http.
 	if err != nil {
 		return err
 	}
-	_, err = request(client, apiURL, http.MethodPut, "/user/password", map[string]string{
+	_, err = request(client, options.apiURL, http.MethodPut, "/user/password", map[string]string{
 		"screen_name": operands[0],
 		"password":    password,
 	}, http.StatusNoContent)
 	if err == nil {
-		_, err = fmt.Fprintf(stdout, "password updated for %s\n", operands[0])
+		err = printSuccess(stdout, "password updated for "+operands[0], options.json)
 	}
 	return err
 }
 
 func getCommand(args []string, path string, stdout io.Writer, client *http.Client) error {
-	apiURL, _, err := parseArgs(args, 0, 0)
+	options, _, err := parseArgs(args, 0, 0)
 	if err != nil {
 		return err
 	}
-	response, err := request(client, apiURL, http.MethodGet, path, nil, http.StatusOK)
-	return printResponse(stdout, response, err)
+	response, err := request(client, options.apiURL, http.MethodGet, path, nil, http.StatusOK)
+	return printResponse(stdout, response, options.json, err)
 }
 
-func parseArgs(args []string, minArgs, maxArgs int) (string, []string, error) {
+func parseArgs(args []string, minArgs, maxArgs int) (commandOptions, []string, error) {
 	flags := flag.NewFlagSet("", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	apiURL := flags.String("url", envOrDefault("OSCAR_API_URL", defaultAPIURL), "management API URL")
+	jsonOutput := flags.Bool("json", false, "output JSON")
 	if err := flags.Parse(args); err != nil {
-		return "", nil, err
+		return commandOptions{}, nil, err
 	}
 	if flags.NArg() < minArgs || maxArgs >= 0 && flags.NArg() > maxArgs {
-		return "", nil, errors.New(usage)
+		return commandOptions{}, nil, errors.New(usage)
 	}
-	return *apiURL, flags.Args(), nil
+	return commandOptions{apiURL: *apiURL, json: *jsonOutput}, flags.Args(), nil
 }
 
 func passwordFromArgsOrStdin(args []string, stdin io.Reader) (string, error) {
@@ -241,17 +248,96 @@ func request(client *http.Client, apiURL, method, path string, payload any, want
 	return response, nil
 }
 
-func printResponse(stdout io.Writer, response []byte, err error) error {
+func printResponse(stdout io.Writer, response []byte, jsonOutput bool, err error) error {
 	if err != nil {
 		return err
 	}
-	if _, err := stdout.Write(response); err != nil {
+	if jsonOutput {
+		if _, err := stdout.Write(response); err != nil {
+			return err
+		}
+		if len(response) > 0 && response[len(response)-1] != '\n' {
+			_, err = fmt.Fprintln(stdout)
+		}
 		return err
 	}
-	if len(response) > 0 && response[len(response)-1] != '\n' {
-		_, err = fmt.Fprintln(stdout)
+	var value any
+	if err := json.Unmarshal(response, &value); err != nil {
+		return fmt.Errorf("decode response: %w", err)
 	}
+	return printHuman(stdout, value, "")
+}
+
+func printSuccess(stdout io.Writer, message string, jsonOutput bool) error {
+	if jsonOutput {
+		return json.NewEncoder(stdout).Encode(map[string]string{"message": message, "status": "ok"})
+	}
+	_, err := fmt.Fprintln(stdout, message)
 	return err
+}
+
+func printHuman(stdout io.Writer, value any, indent string) error {
+	switch value := value.(type) {
+	case map[string]any:
+		if len(value) == 0 {
+			_, err := fmt.Fprintln(stdout, indent+"{}")
+			return err
+		}
+		keys := make([]string, 0, len(value))
+		for key := range value {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			if isStructured(value[key]) {
+				if _, err := fmt.Fprintf(stdout, "%s%s:\n", indent, key); err != nil {
+					return err
+				}
+				if err := printHuman(stdout, value[key], indent+"  "); err != nil {
+					return err
+				}
+			} else if _, err := fmt.Fprintf(stdout, "%s%s: %s\n", indent, key, humanValue(value[key])); err != nil {
+				return err
+			}
+		}
+	case []any:
+		if len(value) == 0 {
+			_, err := fmt.Fprintln(stdout, indent+"[]")
+			return err
+		}
+		for _, item := range value {
+			if isStructured(item) {
+				if _, err := fmt.Fprintln(stdout, indent+"-"); err != nil {
+					return err
+				}
+				if err := printHuman(stdout, item, indent+"  "); err != nil {
+					return err
+				}
+			} else if _, err := fmt.Fprintf(stdout, "%s- %s\n", indent, humanValue(item)); err != nil {
+				return err
+			}
+		}
+	default:
+		_, err := fmt.Fprintf(stdout, "%s%s\n", indent, humanValue(value))
+		return err
+	}
+	return nil
+}
+
+func humanValue(value any) string {
+	if value == nil {
+		return "null"
+	}
+	return fmt.Sprint(value)
+}
+
+func isStructured(value any) bool {
+	switch value.(type) {
+	case map[string]any, []any:
+		return true
+	default:
+		return false
+	}
 }
 
 func envOrDefault(name, fallback string) string {

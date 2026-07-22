@@ -55,14 +55,37 @@ func TestCommands(t *testing.T) {
 
 			var args []string
 			if tt.args[0] == "set-password" || tt.args[0] == "version" {
-				args = append([]string{tt.args[0], "-url", server.URL}, tt.args[1:]...)
+				args = append([]string{tt.args[0], "-url", server.URL, "--json"}, tt.args[1:]...)
 			} else {
-				args = append([]string{tt.args[0], tt.args[1], "-url", server.URL}, tt.args[2:]...)
+				args = append([]string{tt.args[0], tt.args[1], "-url", server.URL, "--json"}, tt.args[2:]...)
 			}
 			var output strings.Builder
 			if err := run(args, strings.NewReader(""), &output, server.Client()); err != nil {
 				t.Fatal(err)
 			}
+			if !json.Valid([]byte(output.String())) {
+				t.Errorf("invalid JSON output: %q", output.String())
+			}
 		})
+	}
+}
+
+func TestOutputModes(t *testing.T) {
+	response := []byte(`[{"screen_name":"alice","is_icq":false}]`)
+
+	var human strings.Builder
+	if err := printResponse(&human, response, false, nil); err != nil {
+		t.Fatal(err)
+	}
+	if human.String() != "-\n  is_icq: false\n  screen_name: alice\n" {
+		t.Errorf("unexpected human output: %q", human.String())
+	}
+
+	var machine strings.Builder
+	if err := printResponse(&machine, response, true, nil); err != nil {
+		t.Fatal(err)
+	}
+	if machine.String() != string(response)+"\n" {
+		t.Errorf("unexpected JSON output: %q", machine.String())
 	}
 }
