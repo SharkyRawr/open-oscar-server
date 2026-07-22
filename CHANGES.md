@@ -15,6 +15,8 @@ Changes made on this branch relative to `main`.
   unprivileged runtime user.
 - Added Bash, curl, and the BART import and ICQ user population utilities to
   the server image for fresh-server setup.
+- Added the `oscar-admin` management API CLI to the server image with a
+  password reset command accepting the password as an argument or on stdin.
 - Updated the Go and Debian base images while retaining stunnel 5.76, OpenSSL
   1.0.2u, and Alpine 3.16's NSS tooling for retro client compatibility;
   verified the stunnel source checksum and added a restricted production TLS
