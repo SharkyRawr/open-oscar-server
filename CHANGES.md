@@ -32,6 +32,7 @@ Changes made on this branch relative to `main`.
 
 ### CI
 
+- Limited the Go workflow to a 10-minute runtime.
 - Updated all workflow push and pull-request triggers for the new
   `lunar-build` primary branch.
 - Added GitHub Actions workflows that publish the server, certgen, and stunnel
