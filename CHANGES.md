@@ -13,6 +13,8 @@ Changes made on this branch relative to `main`.
   bounded logs, authenticated logins, and a dedicated database volume.
 - Hardened the server image with a static, trimmed Go binary and an
   unprivileged runtime user.
+- Added Bash, curl, and the BART import and ICQ user population utilities to
+  the server image for fresh-server setup.
 - Updated the Go and Debian base images while retaining stunnel 5.76, OpenSSL
   1.0.2u, and Alpine 3.16's NSS tooling for retro client compatibility;
   verified the stunnel source checksum and added a restricted production TLS
