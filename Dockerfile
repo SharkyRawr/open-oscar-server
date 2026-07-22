@@ -11,11 +11,13 @@ RUN CGO_ENABLED=0 go build -trimpath -o open_oscar_server ./cmd/server
 
 FROM alpine:latest
 
-RUN addgroup -S -g 65532 oscar && \
+RUN apk add --no-cache bash curl && \
+    addgroup -S -g 65532 oscar && \
     adduser -S -D -H -u 65532 -G oscar oscar && \
     install -d -o oscar -g oscar /data
 
 COPY --from=builder --chown=65532:65532 /app/open_oscar_server /app/open_oscar_server
+COPY --chmod=755 scripts/import_bart.sh scripts/populate_icq_users.sh /usr/local/bin/
 
 USER 65532:65532
 WORKDIR /data
