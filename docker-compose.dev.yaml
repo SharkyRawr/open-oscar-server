@@ -62,7 +62,7 @@ services:
     working_dir: /project
 
   nginx:
-    image: ${NGINX_IMAGE:-ras-nginx:1.28.0-openssl-1.0.2u}
+    image: ${NGINX_IMAGE:-ghcr.io/sharkyrawr/open-oscar-server-nginx:latest}
     # nginx resolves the upstream hostname at startup, so the server container
     # must exist first.
     depends_on:
