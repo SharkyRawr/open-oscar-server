@@ -8,7 +8,7 @@ if [ -z "$1" ]; then
 fi
 
 PEM_PATH="$1"
-NGINX_IMAGE="${NGINX_IMAGE:-ras-nginx:1.28.0-openssl-1.0.2u}"
+NGINX_IMAGE="${NGINX_IMAGE:-ghcr.io/sharkyrawr/open-oscar-server-nginx:latest}"
 
 if [ ! -f "$PEM_PATH" ]; then
   echo "$PEM_PATH is not a file. Run 'make docker-cert' to generate one."
