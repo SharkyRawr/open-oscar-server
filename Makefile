@@ -26,9 +26,9 @@ DOCKER_RUN_GO_RELEASER := @docker run \
 	--workdir /go/src/open-oscar-server \
 	$(DOCKER_IMAGE_TAG_GO_RELEASER)
 OSCAR_HOST ?= ras.dev
-# Tag of the SSL terminator image. docker-compose.yaml defaults to the same
+# Tag of the SSL terminator image. docker-compose.dev.yaml defaults to the same
 # value, so keep the two in sync when bumping nginx.
-NGINX_IMAGE ?= ras-nginx:1.28.0-openssl-1.0.2u
+NGINX_IMAGE ?= ghcr.io/sharkyrawr/open-oscar-server-nginx:latest
 # Host directory holding the web client that nginx serves.
 CLIENT_DIR ?= ./clients
 
